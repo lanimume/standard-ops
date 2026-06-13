@@ -96,10 +96,7 @@
             <button onclick="switchTab('personnel')" id="nav-personnel" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
                 <i class="fas fa-users w-5"></i> 人员管理
             </button>
-            <button onclick="switchTab('waste')" id="nav-waste" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
-                <i class="fas fa-recycle w-5"></i> 废弃物统计
-            </button>
-            <button onclick="switchTab('metrics')" id="nav-metrics" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
+<button onclick="switchTab('metrics')" id="nav-metrics" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
                 <i class="fas fa-gauge-high w-5"></i> 指标监控
             </button>
         </nav>
@@ -171,27 +168,11 @@
                         </div>
                         <div class="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" id="kpi-done-bar" style="width: 0%"></div></div>
                     </div>
-                    <div class="metric-card rounded-2xl p-6 card-hover">
-                        <div class="flex justify-between items-start mb-4">
-                            <div><p class="text-sm text-gray-500 mb-1">本月废弃物</p><h3 class="text-3xl font-bold text-gray-800" id="kpi-waste">--kg</h3></div>
-                            <div class="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center text-red-600"><i class="fas fa-trash-can text-xl"></i></div>
-                        </div>
-                        <div class="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-red-400 rounded-full" style="width: 65%"></div></div>
-                    </div>
+
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="font-bold text-lg text-gray-800">废弃物处理趋势</h3>
-                            <div class="flex gap-2">
-                                <button onclick="updateWasteChart('week')" class="px-3 py-1 text-xs rounded-lg bg-emerald-100 text-emerald-700 font-medium">本周</button>
-                                <button onclick="updateWasteChart('month')" class="px-3 py-1 text-xs rounded-lg text-gray-500 hover:bg-gray-100">本月</button>
-                                <button onclick="updateWasteChart('quarter')" class="px-3 py-1 text-xs rounded-lg text-gray-500 hover:bg-gray-100">季度</button>
-                            </div>
-                        </div>
-                        <div class="h-80"><canvas id="wasteTrendChart"></canvas></div>
-                    </div>
+
                     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                         <h3 class="font-bold text-lg text-gray-800 mb-6">SOP 状态分布</h3>
                         <div class="h-64"><canvas id="sopStatusChart"></canvas></div>
@@ -354,6 +335,48 @@
                 </div>
             </div>
 
+            
+<!-- Personnel Management View -->
+            <div id="view-personnel" class="hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600"><i class="fas fa-users text-xl"></i></div>
+                            <div><p class="text-sm text-gray-500">总人数</p><h3 class="text-2xl font-bold text-gray-800" id="personnel-total">--</h3></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600"><i class="fas fa-briefcase text-xl"></i></div>
+                            <div><p class="text-sm text-gray-500">今日有排班</p><h3 class="text-2xl font-bold text-gray-800" id="personnel-scheduled">--</h3></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600"><i class="fas fa-check-circle text-xl"></i></div>
+                            <div><p class="text-sm text-gray-500">今日已完成</p><h3 class="text-2xl font-bold text-gray-800" id="personnel-completed">--</h3></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600"><i class="fas fa-chart-line text-xl"></i></div>
+                            <div><p class="text-sm text-gray-500">平均完成率</p><h3 class="text-2xl font-bold text-gray-800" id="personnel-avg-rate">--%</h3></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-gray-800">人员管理</h3>
+                    <button onclick="showAddPersonModal()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-emerald-200 transition-all flex items-center gap-2">
+                        <i class="fas fa-user-plus"></i> 添加人员
+                    </button>
+                </div>
+
+                <div id="personnel-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <p class="text-gray-400 text-center py-8 col-span-full">加载中...</p>
+                </div>
+            </div>
+
             <!-- Waste Statistics View -->
             <div id="view-waste" class="hidden space-y-6">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -438,7 +461,7 @@
         <div class="space-y-5">
             <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">流程名称</label><input type="text" id="sop-edit-title" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all" placeholder="请输入流程名称"></div>
-                <div><label class="block text-sm font-medium text-gray-700 mb-1">分类</label><select id="sop-edit-category" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all"><option value="进货查验">进货查验</option><option value="过程控制">过程控制</option><option value="储存管理">储存管理</option><option value="清洗消毒">清洗消毒</option><option value="添加剂管理">添加剂管理</option><option value="废弃物">废弃物</option><option value="其他">其他</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">分类</label><select id="sop-edit-category" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all"><option value="进货查验">进货查验</option><option value="过程控制">过程控制</option><option value="储存管理">储存管理</option><option value="清洗消毒">清洗消毒</option><option value="添加剂管理">添加剂管理</option><option value="其他">其他</option></select></div>
             </div>
             <div><label class="block text-sm font-medium text-gray-700 mb-1">优先级</label><div class="flex gap-3"><label class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"><input type="radio" name="sop-edit-priority" value="high" class="text-red-500 focus:ring-red-500"><span class="text-sm">高</span><i class="fas fa-flag text-red-500 text-xs"></i></label><label class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"><input type="radio" name="sop-edit-priority" value="medium" class="text-amber-500 focus:ring-amber-500"><span class="text-sm">中</span><i class="fas fa-flag text-amber-500 text-xs"></i></label><label class="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"><input type="radio" name="sop-edit-priority" value="low" class="text-gray-400 focus:ring-gray-400"><span class="text-sm">低</span><i class="fas fa-flag text-gray-400 text-xs"></i></label></div></div>
             <div><div class="flex justify-between items-center mb-3"><label class="block text-sm font-medium text-gray-700">执行步骤</label><button onclick="addEditStep()" class="text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors font-medium"><i class="fas fa-plus mr-1"></i>添加步骤</button></div><div id="sop-edit-steps" class="space-y-2"></div></div>
@@ -640,7 +663,7 @@
         renderScheduleTable();
         renderPersonShiftOverview();
         initCharts();
-        renderTodayEvents();
+        renderTaskExecution();
         renderDashboardTodo();
         renderWasteTable();
         updateMetrics();
@@ -737,7 +760,7 @@
         const defaultShifts = [
             { name: 'A班（早班）', color: 'bg-blue-500', sop_ids: [1, 2], description: '负责原料检验和生产加工' },
             { name: 'B班（中班）', color: 'bg-emerald-500', sop_ids: [3, 4], description: '负责仓储管理和清洗消毒' },
-            { name: 'C班（晚班）', color: 'bg-amber-500', sop_ids: [5, 6], description: '负责添加剂管理和废弃物处置' }
+            { name: 'C班（晚班）', color: 'bg-amber-500', sop_ids: [5], description: '负责添加剂管理' }
         ];
 
         for (const s of defaultSop) await supabase.from('sop').insert(s);
@@ -805,17 +828,15 @@
             shift: { title: '排班管理', subtitle: '班次定义与人员排班调度' },
             calendar: { title: '任务执行', subtitle: '人员SOP任务逐项执行与完成确认' },
             personnel: { title: '人员管理', subtitle: '人员信息维护' },
-            waste: { title: '废弃物统计', subtitle: '废弃物处理数据分析与报告' },
             metrics: { title: '指标监控', subtitle: '关键绩效指标实时计算与追踪' }
         };
 
         document.getElementById('page-title').textContent = titles[tab].title;
         document.getElementById('page-subtitle').textContent = titles[tab].subtitle;
 
-        if (tab === 'waste' && charts.wasteCategory) { charts.wasteCategory.update(); charts.wasteEfficiency.update(); }
         if (tab === 'metrics' && charts.metricsTrend) { charts.metricsTrend.update(); }
         if (tab === 'shift') { renderShifts(); renderScheduleTable(); renderPersonShiftOverview(); }
-        if (tab === 'calendar') { renderTodayEvents(); }
+        if (tab === 'calendar') { renderTaskExecution(); }
         if (tab === 'dashboard') { renderDashboardTodo(); updateMetrics(); }
         if (tab === 'sop') { renderSopCards(); }
         if (tab === 'personnel') { renderPersonnel(); }
@@ -1211,7 +1232,7 @@
         if (date === TODAY_STR) {
             await generateTodayTasks();
             taskData = await loadTasks();
-            renderTodayEvents();
+            renderTaskExecution();
             renderDashboardTodo();
             updateMetrics();
             updateTodoBadges();
@@ -1304,7 +1325,7 @@
         }
     }
 
-    function renderTodayEvents() {
+    function renderTaskExecution() {
         const container = document.getElementById('task-execution-list');
         const todayTasks = taskData.filter(t => t.date === TODAY_STR);
 
@@ -1395,7 +1416,7 @@
                                                     <input type="file" accept="image/*" class="hidden" onchange="uploadStepPhoto(${task.person_id}, ${task.sop_id}, ${idx}, this)">
                                                 </label>
                                             `}
-                                            <button onclick="toggleStepDone(${task.person_id}, ${task.sop_id}, ${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-colors flex items-center gap-1">
+                                            <button onclick="completeStep(${task.person_id}, ${task.sop_id}, ${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-colors flex items-center gap-1">
                                                 <i class="fas fa-check"></i> 完成
                                             </button>
                                         </div>
@@ -1404,7 +1425,7 @@
                                             ${task.photos && task.photos[idx] ? `
                                                 <img src="${task.photos[idx]}" class="w-8 h-8 rounded-lg object-cover border border-gray-200" onclick="window.open('${task.photos[idx]}', '_blank')" style="cursor:zoom-in">
                                             ` : ''}
-                                            <button onclick="toggleStepDone(${task.person_id}, ${task.sop_id}, ${idx})" class="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400 text-xs font-medium hover:bg-gray-100 transition-colors">
+                                            <button onclick="undoStep(${task.person_id}, ${task.sop_id}, ${idx})" class="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400 text-xs font-medium hover:bg-gray-100 transition-colors">
                                                 <i class="fas fa-undo mr-1"></i>撤销
                                             </button>
                                         </div>
@@ -1427,7 +1448,7 @@
         }).join('');
     }
 
-    async function toggleStepDone(personId, sopId, stepIdx) {
+    async function completeStep(personId, sopId, stepIdx) {
         let task = taskData.find(t => t.person_id === personId && t.date === TODAY_STR && t.sop_id === sopId);
         if (!task) return;
 
@@ -1454,14 +1475,14 @@
 
         await saveTaskToDb(task);
         taskData = await loadTasks();
-        renderTodayEvents();
+        renderTaskExecution();
         renderDashboardTodo();
         renderPersonShiftOverview();
         updateMetrics();
         updateTodoBadges();
     }
 
-    async function toggleStepDone(personId, sopId, stepIdx) {
+    async function undoStep(personId, sopId, stepIdx) {
         let task = taskData.find(t => t.person_id === personId && t.date === TODAY_STR && t.sop_id === sopId);
         if (!task) return;
 
@@ -1480,7 +1501,7 @@
 
         await saveTaskToDb(task);
         taskData = await loadTasks();
-        renderTodayEvents();
+        renderTaskExecution();
         renderDashboardTodo();
         renderPersonShiftOverview();
         updateMetrics();
@@ -1540,7 +1561,7 @@
                 await saveTaskToDb(task);
 
                 showToast('上传成功', '图片已保存');
-                renderTodayEvents();
+                renderTaskExecution();
             }
         } catch (err) {
             console.error('Upload error:', err);
@@ -1723,11 +1744,7 @@
         const idx = personnelData.findIndex(p => p.id === id);
         if (idx > -1) { personnelData.splice(idx, 1); renderPersonnel(); renderScheduleTable(); renderPersonShiftOverview(); showToast('删除成功', '人员已移除'); }
     }
-
-    // ==================== Waste Statistics ====================
-    function renderWasteTable() {
-        const data = [
-            { date: '2026-06-12', type: '厨余垃圾', weight: 42.5, method: '生物降解', person: '陈后勤', status: 'completed' },
+,
             { date: '2026-06-11', type: '厨余垃圾', weight: 45.2, method: '生物降解', person: '陈后勤', status: 'completed' },
             { date: '2026-06-10', type: '废弃油脂', weight: 12.5, method: '专业回收', person: '陈后勤', status: 'completed' },
             { date: '2026-06-09', type: '包装材料', weight: 23.0, method: '分类回收', person: '王仓管', status: 'completed' },
@@ -1750,39 +1767,7 @@
 
     // ==================== Charts ====================
     function initCharts() {
-        // Waste Trend Chart
-        const ctx1 = document.getElementById('wasteTrendChart').getContext('2d');
-        charts.wasteTrend = new Chart(ctx1, {
-            type: 'line',
-            data: {
-                labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-                datasets: [{
-                    label: '厨余垃圾 (kg)',
-                    data: [42, 38, 45, 40, 48, 35, 30],
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 3
-                }, {
-                    label: '废弃油脂 (kg)',
-                    data: [12, 10, 15, 11, 13, 8, 9],
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'top', align: 'end' } },
-                scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
-            }
-        });
-
-        // SOP Status Chart
+// SOP Status Chart
         const ctx2 = document.getElementById('sopStatusChart').getContext('2d');
         charts.sopStatus = new Chart(ctx2, {
             type: 'doughnut',
@@ -1801,65 +1786,7 @@
                 plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } }
             }
         });
-
-        // Waste Category Chart
-        const ctx3 = document.getElementById('wasteCategoryChart').getContext('2d');
-        charts.wasteCategory = new Chart(ctx3, {
-            type: 'bar',
-            data: {
-                labels: ['厨余垃圾', '废弃油脂', '包装材料', '过期原料', '其他'],
-                datasets: [{
-                    label: '重量 (kg)',
-                    data: [245, 78, 120, 45, 32],
-                    backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#9ca3af'],
-                    borderRadius: 8,
-                    barThickness: 40
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
-            }
-        });
-
-        // Waste Efficiency Chart
-        const ctx4 = document.getElementById('wasteEfficiencyChart').getContext('2d');
-        charts.wasteEfficiency = new Chart(ctx4, {
-            type: 'bar',
-            data: {
-                labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
-                datasets: [{
-                    label: '处理量 (kg)',
-                    data: [1200, 1350, 1100, 1450, 1300, 1245],
-                    backgroundColor: '#10b981',
-                    borderRadius: 8,
-                    barThickness: 20
-                }, {
-                    label: '回收利用率 (%)',
-                    data: [65, 68, 72, 75, 78, 82],
-                    type: 'line',
-                    borderColor: '#3b82f6',
-                    borderWidth: 3,
-                    pointBackgroundColor: '#fff',
-                    pointBorderColor: '#3b82f6',
-                    pointRadius: 5,
-                    yAxisID: 'y1'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
-                    y1: { position: 'right', min: 0, max: 100, grid: { display: false } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-
-        // Metrics Trend Chart
+// Metrics Trend Chart
         const ctx5 = document.getElementById('metricsTrendChart').getContext('2d');
         charts.metricsTrend = new Chart(ctx5, {
             type: 'line',
@@ -1899,10 +1826,7 @@
             }
         });
     }
-
-    function updateWasteChart(period) {
-        const data = {
-            week: { labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'], data1: [42, 38, 45, 40, 48, 35, 30], data2: [12, 10, 15, 11, 13, 8, 9] },
+,
             month: { labels: ['第1周', '第2周', '第3周', '第4周'], data1: [180, 195, 210, 185], data2: [45, 52, 48, 55] },
             quarter: { labels: ['4月', '5月', '6月'], data1: [780, 820, 770], data2: [210, 225, 218] }
         };
@@ -1914,7 +1838,7 @@
     }
 
     function updateSopStatusChart() {
-        const categories = ['进货查验', '过程控制', '储存管理', '清洗消毒', '添加剂管理', '废弃物', '其他'];
+        const categories = ['进货查验', '过程控制', '储存管理', '清洗消毒', '添加剂管理', '其他'];
         const counts = categories.map(cat => sopData.filter(s => s.category === cat).length);
         charts.sopStatus.data.datasets[0].data = counts;
         charts.sopStatus.update();
@@ -1978,8 +1902,8 @@
         toggleTaskExpand, toggleStepDone, uploadStepPhoto, viewPhoto,
         
         showAddPersonModal, editPerson, deletePerson, savePerson, closePersonModal,
-        updateWasteChart, showNotification, showToast,
-        renderPersonnel, renderDashboardTodo, renderWasteTable, updateMetrics,
+        showNotification, showToast,
+        renderPersonnel, renderDashboardTodo, updateMetrics,
         updateSopStatusChart, initCharts, updateTime,
         openSopEditModal, closeSopEditModal, saveSopEdit, addEditStep, removeEditStep,
         showShiftModal, closeShiftModal, saveShift, editShift, deleteShift,
