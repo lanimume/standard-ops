@@ -2,9 +2,6 @@
 const SUPABASE_URL = 'https://pgphhfqiyqdnlrqurzvv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_VD3xRTYLl_0CXCz_SR1jHw_17shJsXj';
 
-// 全局 supabase 对象，由 HTML 中的 <script> 标签加载后赋值
-// 如果加载失败，这里会保持 undefined，后续代码会优雅降级
-
 // ==================== 通用工具函数 ====================
 function showToast(title, message, type = 'success') {
     const toast = document.getElementById('toast');
@@ -167,7 +164,7 @@ async function saveSchedule(schedule) {
 async function deleteSchedule(personId, date) {
     if (!isSupabaseReady()) return;
     try {
-        await window.supabase.from('schedules').delete().eq('person_id', personId).eq('date', date);
+        await window.supabase.from('sched班').delete().eq('person_id', personId).eq('date', date);
     } catch (e) { handleSupabaseError('deleteSchedule', e); }
 }
 
@@ -201,7 +198,6 @@ async function loadSopTasks(date) {
 async function saveSopTask(task) {
     if (!isSupabaseReady()) { showToast('离线模式', '无法保存到数据库', 'warning'); return null; }
     try {
-        // 清理关联对象字段，只保留表本身的字段
         const cleanTask = {
             id: task.id,
             schedule_id: task.schedule_id,
@@ -212,7 +208,6 @@ async function saveSopTask(task) {
             steps: task.steps,
             completed_at: task.completed_at
         };
-        // 移除 undefined 字段
         Object.keys(cleanTask).forEach(key => {
             if (cleanTask[key] === undefined) delete cleanTask[key];
         });
@@ -231,28 +226,16 @@ async function saveSopTask(task) {
     }
 }
 
-async function uploadPhoto(file, taskId, stepIndex) {
-    if (!isSupabaseReady()) { showToast('离线模式', '无法上传照片', 'warning'); return null; }
-    try {
-        const fileName = `task_${taskId}_step_${stepIndex}_${Date.now()}.${file.name.split('.').pop()}`;
-        const { data, error } = await window.supabase.storage.from('sop-photos').upload(fileName, file);
-        if (error) { handleSupabaseError('uploadPhoto', error); return null; }
-        const { data: { publicUrl } } = window.supabase.storage.from('sop-photos').getPublicUrl(fileName);
-        return publicUrl;
-    } catch (e) { handleSupabaseError('uploadPhoto', e); return null; }
-}
-
-// ==================== 生成每日任务 ====================
+// ==================== 生成每日任务（修复版）====================
 async function generateDailyTasks(date, force = false) {
     if (!isSupabaseReady()) {
         console.warn('[generateDailyTasks] Supabase 未就绪，跳过任务生成');
         return [];
     }
     try {
-        // 正确解析本地日期，避免时区问题
         const dateParts = date.split('-');
         const year = parseInt(dateParts[0]);
-        const month = parseInt(dateParts[1]) - 1; // JavaScript month is 0-based
+        const month = parseInt(dateParts[1]) - 1;
 
         console.log(`[generateDailyTasks] 开始生成 ${date} 的任务...`);
 
@@ -264,7 +247,6 @@ async function generateDailyTasks(date, force = false) {
 
         const shifts = await loadShifts();
         console.log(`[generateDailyTasks] 加载到 ${shifts.length} 个班次`);
-        shifts.forEach(s => console.log(`  - 班次 ${s.name}: sop_ids=${JSON.stringify(s.sop_ids)}`));
 
         const templates = await loadSopTemplates();
         console.log(`[generateDailyTasks] 加载到 ${templates.length} 个 SOP 模板`);
@@ -278,22 +260,21 @@ async function generateDailyTasks(date, force = false) {
             return existing;
         }
 
-        // 如果是强制重新生成，先删除已有任务
+        // 强制重新生成时：保留已有任务的 steps 状态，只补充新任务
         if (force && existing.length > 0) {
-            console.log('[generateDailyTasks] 强制重新生成，删除已有任务...');
-            for (const task of existing) {
-                try { await window.supabase.from('sop_tasks').delete().eq('id', task.id); } catch (e) {}
-            }
+            console.log('[generateDailyTasks] 强制重新生成，保留已有任务状态...');
+            // 不删除已有任务，而是检查是否需要补充新任务
         }
 
         const tasks = [];
+        const existingKeys = new Set(existing.map(t => `${t.schedule_id}-${t.sop_template_id}`));
+
         for (const sched of todaySchedules) {
             const shift = shifts.find(s => s.id === sched.shift_id);
             if (!shift) {
                 console.warn(`[generateDailyTasks] 排班 ${sched.id} 未找到对应班次 ${sched.shift_id}`);
                 continue;
             }
-            console.log(`[generateDailyTasks] 处理排班: person_id=${sched.person_id}, shift=${shift.name}, sop_ids=${JSON.stringify(shift.sop_ids)}`);
 
             const sopIds = shift.sop_ids || [];
             if (sopIds.length === 0) {
@@ -302,12 +283,20 @@ async function generateDailyTasks(date, force = false) {
             }
 
             for (const sopId of sopIds) {
+                const key = `${sched.id}-${sopId}`;
+                
+                // 如果已有这个任务，跳过
+                if (existingKeys.has(key)) {
+                    console.log(`[generateDailyTasks] 任务已存在: schedule=${sched.id}, sop=${sopId}`);
+                    continue;
+                }
+
                 const template = templates.find(t => t.id === sopId);
                 if (!template) {
                     console.warn(`[generateDailyTasks] 未找到 SOP 模板 ${sopId}`);
                     continue;
                 }
-                console.log(`[generateDailyTasks] 生成任务: ${template.title}`);
+                console.log(`[generateDailyTasks] 生成新任务: ${template.title}`);
                 tasks.push({
                     schedule_id: sched.id,
                     sop_template_id: sopId,
@@ -324,7 +313,7 @@ async function generateDailyTasks(date, force = false) {
             }
         }
 
-        console.log(`[generateDailyTasks] 将插入 ${tasks.length} 个任务`);
+        console.log(`[generateDailyTasks] 将插入 ${tasks.length} 个新任务`);
 
         for (const task of tasks) {
             const { data, error } = await window.supabase.from('sop_tasks').insert(task).select();
@@ -358,7 +347,7 @@ function highlightNav(activePage) {
     }
 }
 
-// 导出到全局（非 ES Module 方式）
+// 导出到全局
 window.showToast = showToast;
 window.updateTime = updateTime;
 window.highlightNav = highlightNav;
@@ -376,6 +365,5 @@ window.saveSchedule = saveSchedule;
 window.deleteSchedule = deleteSchedule;
 window.loadSopTasks = loadSopTasks;
 window.saveSopTask = saveSopTask;
-window.uploadPhoto = uploadPhoto;
 window.generateDailyTasks = generateDailyTasks;
 window.isSupabaseReady = isSupabaseReady;
