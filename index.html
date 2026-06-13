@@ -640,7 +640,7 @@
         renderScheduleTable();
         renderPersonShiftOverview();
         initCharts();
-        renderTaskExecution();
+        renderTodayEvents();
         renderDashboardTodo();
         renderWasteTable();
         updateMetrics();
@@ -815,7 +815,7 @@
         if (tab === 'waste' && charts.wasteCategory) { charts.wasteCategory.update(); charts.wasteEfficiency.update(); }
         if (tab === 'metrics' && charts.metricsTrend) { charts.metricsTrend.update(); }
         if (tab === 'shift') { renderShifts(); renderScheduleTable(); renderPersonShiftOverview(); }
-        if (tab === 'calendar') { renderTaskExecution(); }
+        if (tab === 'calendar') { renderTodayEvents(); }
         if (tab === 'dashboard') { renderDashboardTodo(); updateMetrics(); }
         if (tab === 'sop') { renderSopCards(); }
         if (tab === 'personnel') { renderPersonnel(); }
@@ -1211,7 +1211,7 @@
         if (date === TODAY_STR) {
             await generateTodayTasks();
             taskData = await loadTasks();
-            renderTaskExecution();
+            renderTodayEvents();
             renderDashboardTodo();
             updateMetrics();
             updateTodoBadges();
@@ -1304,7 +1304,7 @@
         }
     }
 
-    function renderTaskExecution() {
+    function renderTodayEvents() {
         const container = document.getElementById('task-execution-list');
         const todayTasks = taskData.filter(t => t.date === TODAY_STR);
 
@@ -1395,7 +1395,7 @@
                                                     <input type="file" accept="image/*" class="hidden" onchange="uploadStepPhoto(${task.person_id}, ${task.sop_id}, ${idx}, this)">
                                                 </label>
                                             `}
-                                            <button onclick="completeStep(${task.person_id}, ${task.sop_id}, ${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-colors flex items-center gap-1">
+                                            <button onclick="toggleStepDone(${task.person_id}, ${task.sop_id}, ${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-medium hover:bg-emerald-100 transition-colors flex items-center gap-1">
                                                 <i class="fas fa-check"></i> 完成
                                             </button>
                                         </div>
@@ -1404,7 +1404,7 @@
                                             ${task.photos && task.photos[idx] ? `
                                                 <img src="${task.photos[idx]}" class="w-8 h-8 rounded-lg object-cover border border-gray-200" onclick="window.open('${task.photos[idx]}', '_blank')" style="cursor:zoom-in">
                                             ` : ''}
-                                            <button onclick="undoStep(${task.person_id}, ${task.sop_id}, ${idx})" class="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400 text-xs font-medium hover:bg-gray-100 transition-colors">
+                                            <button onclick="toggleStepDone(${task.person_id}, ${task.sop_id}, ${idx})" class="px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400 text-xs font-medium hover:bg-gray-100 transition-colors">
                                                 <i class="fas fa-undo mr-1"></i>撤销
                                             </button>
                                         </div>
@@ -1427,7 +1427,7 @@
         }).join('');
     }
 
-    async function completeStep(personId, sopId, stepIdx) {
+    async function toggleStepDone(personId, sopId, stepIdx) {
         let task = taskData.find(t => t.person_id === personId && t.date === TODAY_STR && t.sop_id === sopId);
         if (!task) return;
 
@@ -1454,14 +1454,14 @@
 
         await saveTaskToDb(task);
         taskData = await loadTasks();
-        renderTaskExecution();
+        renderTodayEvents();
         renderDashboardTodo();
         renderPersonShiftOverview();
         updateMetrics();
         updateTodoBadges();
     }
 
-    async function undoStep(personId, sopId, stepIdx) {
+    async function toggleStepDone(personId, sopId, stepIdx) {
         let task = taskData.find(t => t.person_id === personId && t.date === TODAY_STR && t.sop_id === sopId);
         if (!task) return;
 
@@ -1480,7 +1480,7 @@
 
         await saveTaskToDb(task);
         taskData = await loadTasks();
-        renderTaskExecution();
+        renderTodayEvents();
         renderDashboardTodo();
         renderPersonShiftOverview();
         updateMetrics();
@@ -1540,7 +1540,7 @@
                 await saveTaskToDb(task);
 
                 showToast('上传成功', '图片已保存');
-                renderTaskExecution();
+                renderTodayEvents();
             }
         } catch (err) {
             console.error('Upload error:', err);
