@@ -514,9 +514,23 @@
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
     // ==================== Supabase 配置 ====================
-    const SUPABASE_URL = 'https://pgphhfqiyqdnlrqurzvv.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_VD3xRTYLl_0CXCz_SR1jHw_17shJsXj';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = 'https://pgphhfqiyqdnlrqurzvv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VD3xRTYLl_0CXCz_SR1jHw_17shJsXj';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false
+    },
+    db: {
+        schema: 'public'
+    },
+    global: {
+        headers: {
+            'apikey': SUPABASE_KEY
+        }
+    }
+});
 
     // ==================== 全局状态 ====================
     let sopData = [];
