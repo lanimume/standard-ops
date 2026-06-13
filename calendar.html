@@ -13,7 +13,12 @@
         .calendar-day:hover:not(.empty) { background-color: #ecfdf5; transform: scale(1.1); border-radius: 8px; }
         .calendar-day.today { background-color: #10b981; color: white; border-radius: 8px; }
         .step-photo-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-        .step-photo-preview img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; }
+        .step-photo-preview .photo-item { position: relative; width: 80px; height: 80px; }
+        .step-photo-preview .photo-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; cursor: pointer; }
+        .step-photo-preview .photo-item .delete-btn { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: #ef4444; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+        .step-photo-preview .photo-item:hover .delete-btn { opacity: 1; }
+        .photo-upload-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px dashed #d1d5db; border-radius: 8px; cursor: pointer; color: #6b7280; font-size: 13px; transition: all 0.2s; margin-top: 8px; }
+        .photo-upload-btn:hover { border-color: #10b981; color: #10b981; background: #ecfdf5; }
         .task-card { transition: all 0.3s; }
         .task-card:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
     </style>
@@ -245,7 +250,6 @@ async function selectDate(dateStr) {
     document.getElementById('selected-date-subtitle').textContent = dateStr;
 
     try {
-        // force=true 强制重新生成任务（排班可能有变化）
         await generateDailyTasks(dateStr, true);
         taskData = await loadSopTasks(dateStr);
     } catch (e) {
@@ -337,7 +341,25 @@ function renderTasks() {
     }).join('');
 }
 
-function openTaskDetail(taskId) {
+// ========== 新增：从 task_photos 表加载步骤图片 ==========
+async function loadStepPhotos(taskId, stepIndex) {
+    try {
+        const { data, error } = await supabase
+            .from('task_photos')
+            .select('id, photo_url, uploaded_at')
+            .eq('task_id', taskId)
+            .eq('step_index', stepIndex)
+            .order('uploaded_at', { ascending: true });
+        if (error) throw error;
+        return data || [];
+    } catch (e) {
+        console.error('loadStepPhotos error:', e);
+        return [];
+    }
+}
+
+// ========== 修改：openTaskDetail 支持图片上传和展示 ==========
+async function openTaskDetail(taskId) {
     currentTaskId = taskId;
     const task = taskData.find(t => t.id === taskId);
     if (!task) return;
@@ -346,10 +368,19 @@ function openTaskDetail(taskId) {
     document.getElementById('task-modal-subtitle').textContent = `${task.person?.name || ''} · ${task.sop_template?.category || ''} · ${selectedDate}`;
 
     const container = document.getElementById('task-steps-container');
+    container.innerHTML = '<p class="text-center text-gray-400 py-4">加载步骤中...</p>';
+
+    // 并行加载所有步骤的图片
+    const stepPhotosPromises = (task.steps || []).map((_, idx) => loadStepPhotos(taskId, idx));
+    const allStepPhotos = await Promise.all(stepPhotosPromises);
+
     container.innerHTML = (task.steps || []).map((step, idx) => {
         const isDone = step.done;
+        const photos = allStepPhotos[idx] || [];
+        const hasPhotos = photos.length > 0;
+
         return `
-            <div class="border rounded-xl p-4 ${isDone ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200'}">
+            <div class="border rounded-xl p-4 ${isDone ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200'}" data-step-index="${idx}">
                 <div class="flex items-start gap-3">
                     <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${isDone ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'}">
                         ${isDone ? '<i class="fas fa-check"></i>' : idx + 1}
@@ -374,21 +405,24 @@ function openTaskDetail(taskId) {
                             </div>
                         ` : (step.note ? `<div class="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg"><i class="fas fa-sticky-note text-gray-400 mr-1"></i>${step.note}</div>` : '')}
 
-                        ${step.require_photo ? `
-                            <div class="mt-3">
-                                <p class="text-xs text-gray-500 mb-2"><i class="fas fa-camera mr-1"></i> 此步骤需要拍照记录</p>
-                                <div class="step-photo-preview" id="photos-${taskId}-${idx}">
-                                    ${(step.photos || []).map(url => `<img src="${url}" alt="照片" onclick="window.open('${url}', '_blank')">`).join('')}
-                                </div>
-                                ${!isDone ? `
-                                    <div class="photo-upload-zone mt-2" onclick="document.getElementById('photo-input-${taskId}-${idx}').click()">
-                                        <i class="fas fa-cloud-upload-alt text-gray-400 text-lg mb-1"></i>
-                                        <p class="text-xs text-gray-500">点击上传照片</p>
-                                        <input type="file" id="photo-input-${taskId}-${idx}" class="hidden" accept="image/*" onchange="handlePhotoUpload(${taskId}, ${idx}, this)">
+                        <!-- ========== 图片上传区域（新增） ========== -->
+                        <div class="mt-3">
+                            <div class="step-photo-preview" id="photos-${taskId}-${idx}">
+                                ${photos.map(p => `
+                                    <div class="photo-item" data-photo-id="${p.id}">
+                                        <img src="${p.photo_url}" alt="照片" onclick="window.open('${p.photo_url}', '_blank')">
+                                        ${!isDone ? `<div class="delete-btn" onclick="deleteStepPhoto(${taskId}, ${idx}, ${p.id}, '${p.photo_url}')" title="删除"><i class="fas fa-times"></i></div>` : ''}
                                     </div>
-                                ` : ''}
+                                `).join('')}
                             </div>
-                        ` : ''}
+                            ${!isDone ? `
+                                <label class="photo-upload-btn" onclick="document.getElementById('photo-input-${taskId}-${idx}').click()">
+                                    <i class="fas fa-camera"></i>
+                                    <span>上传图片</span>
+                                    <input type="file" id="photo-input-${taskId}-${idx}" class="hidden" accept="image/*" onchange="handlePhotoUpload(${taskId}, ${idx}, this)">
+                                </label>
+                            ` : ''}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -410,13 +444,16 @@ async function completeStep(taskId, stepIndex) {
     const task = taskData.find(t => t.id === taskId);
     if (!task || !task.steps[stepIndex]) return;
 
-    // 获取备注
     const noteEl = document.getElementById(`note-${taskId}-${stepIndex}`);
     const note = noteEl ? noteEl.value.trim() : '';
 
-    if (task.steps[stepIndex].require_photo && (!task.steps[stepIndex].photos || task.steps[stepIndex].photos.length === 0)) {
-        showToast('需要拍照', '此步骤要求上传照片后才能标记完成', 'warning');
-        return;
+    // 检查是否要求拍照
+    if (task.steps[stepIndex].require_photo) {
+        const photos = await loadStepPhotos(taskId, stepIndex);
+        if (photos.length === 0) {
+            showToast('需要拍照', '此步骤要求上传照片后才能标记完成', 'warning');
+            return;
+        }
     }
 
     task.steps[stepIndex].done = true;
@@ -444,37 +481,130 @@ async function completeStep(taskId, stepIndex) {
     openTaskDetail(taskId);
 }
 
+// ========== 修改：handlePhotoUpload 上传到 Storage + 记录到 task_photos 表 ==========
 async function handlePhotoUpload(taskId, stepIndex, input) {
     const file = input.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const url = e.target.result;
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+        showToast('格式错误', '请上传图片文件', 'warning');
+        return;
+    }
+
+    // 检查文件大小（最大 5MB）
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('文件过大', '图片大小不能超过 5MB', 'warning');
+        return;
+    }
+
+    showToast('上传中', '正在上传图片...', 'info');
+
+    try {
+        // 1. 上传到 Supabase Storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${taskId}_${stepIndex}_${Date.now()}.${fileExt}`;
+        const filePath = `task-${taskId}/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('sop-photos')
+            .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (uploadError) throw uploadError;
+
+        // 2. 获取公开 URL
+        const { data: urlData } = supabase.storage
+            .from('sop-photos')
+            .getPublicUrl(filePath);
+
+        const photoUrl = urlData.publicUrl;
+
+        // 3. 记录到 task_photos 表
+        const { error: dbError } = await supabase
+            .from('task_photos')
+            .insert({
+                task_id: taskId,
+                step_index: stepIndex,
+                photo_url: photoUrl,
+                uploaded_at: new Date().toISOString()
+            });
+
+        if (dbError) throw dbError;
+
+        // 4. 更新本地数据并刷新 UI
         const task = taskData.find(t => t.id === taskId);
         if (task && task.steps[stepIndex]) {
             if (!task.steps[stepIndex].photos) task.steps[stepIndex].photos = [];
-            task.steps[stepIndex].photos.push(url);
-
-            // 同步备注
-            const noteEl = document.getElementById(`note-${taskId}-${stepIndex}`);
-            if (noteEl) task.steps[stepIndex].note = noteEl.value.trim();
-
-            try {
-                await saveSopTask(task);
-            } catch (err) {
-                console.error('handlePhotoUpload 保存失败:', err);
-                showToast('离线提示', '照片已本地预览，数据库保存失败', 'warning');
-            }
-            const previewContainer = document.getElementById(`photos-${taskId}-${stepIndex}`);
-            const img = document.createElement('img');
-            img.src = url;
-            img.onclick = () => window.open(url, '_blank');
-            previewContainer.appendChild(img);
-            showToast('上传成功', '照片已保存');
+            task.steps[stepIndex].photos.push(photoUrl);
         }
-    };
-    reader.readAsDataURL(file);
+
+        // 重新加载该步骤图片并刷新展示
+        await refreshStepPhotos(taskId, stepIndex);
+        showToast('上传成功', '照片已保存');
+
+    } catch (err) {
+        console.error('handlePhotoUpload error:', err);
+        showToast('上传失败', err.message || '图片上传失败，请重试', 'error');
+    }
+
+    // 清空 input，允许重复上传同一文件
+    input.value = '';
+}
+
+// ========== 新增：刷新单个步骤的图片展示 ==========
+async function refreshStepPhotos(taskId, stepIndex) {
+    const photos = await loadStepPhotos(taskId, stepIndex);
+    const container = document.getElementById(`photos-${taskId}-${stepIndex}`);
+    if (!container) return;
+
+    const task = taskData.find(t => t.id === taskId);
+    const isDone = task?.steps[stepIndex]?.done || false;
+
+    container.innerHTML = photos.map(p => `
+        <div class="photo-item" data-photo-id="${p.id}">
+            <img src="${p.photo_url}" alt="照片" onclick="window.open('${p.photo_url}', '_blank')">
+            ${!isDone ? `<div class="delete-btn" onclick="deleteStepPhoto(${taskId}, ${stepIndex}, ${p.id}, '${p.photo_url}')" title="删除"><i class="fas fa-times"></i></div>` : ''}
+        </div>
+    `).join('');
+}
+
+// ========== 新增：删除步骤图片 ==========
+async function deleteStepPhoto(taskId, stepIndex, photoId, photoUrl) {
+    if (!confirm('确定删除这张图片吗？')) return;
+
+    showToast('删除中', '正在删除图片...', 'info');
+
+    try {
+        // 1. 从数据库删除记录
+        const { error: dbError } = await supabase
+            .from('task_photos')
+            .delete()
+            .eq('id', photoId);
+
+        if (dbError) throw dbError;
+
+        // 2. 从 Storage 删除文件（可选，根据 URL 提取路径）
+        try {
+            const urlObj = new URL(photoUrl);
+            const pathMatch = urlObj.pathname.match(/\/sop-photos\/(.+)/);
+            if (pathMatch) {
+                await supabase.storage.from('sop-photos').remove([pathMatch[1]]);
+            }
+        } catch (storageErr) {
+            console.warn('Storage 删除失败（可能已不存在）:', storageErr);
+        }
+
+        // 3. 刷新 UI
+        await refreshStepPhotos(taskId, stepIndex);
+        showToast('删除成功', '图片已删除');
+
+    } catch (err) {
+        console.error('deleteStepPhoto error:', err);
+        showToast('删除失败', err.message || '删除图片失败', 'error');
+    }
 }
 
 async function refreshTasks() {
@@ -502,6 +632,35 @@ function openModal(modalId, contentId) {
         content.classList.remove('scale-95', 'opacity-0');
         content.classList.add('scale-100', 'opacity-100');
     }, 10);
+}
+
+function showToast(title, message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastTitle = document.getElementById('toast-title');
+    const toastMessage = document.getElementById('toast-message');
+    const iconDiv = toast.querySelector('div:first-child');
+
+    toastTitle.textContent = title;
+    toastMessage.textContent = message;
+
+    const config = {
+        success: { bg: 'bg-emerald-100', text: 'text-emerald-600', icon: 'fa-check' },
+        warning: { bg: 'bg-amber-100', text: 'text-amber-600', icon: 'fa-exclamation-triangle' },
+        error: { bg: 'bg-red-100', text: 'text-red-600', icon: 'fa-times-circle' },
+        info: { bg: 'bg-blue-100', text: 'text-blue-600', icon: 'fa-info-circle' }
+    };
+    const c = config[type] || config.success;
+
+    iconDiv.className = `w-10 h-10 ${c.bg} rounded-full flex items-center justify-center ${c.text} flex-shrink-0`;
+    iconDiv.innerHTML = `<i class="fas ${c.icon}"></i>`;
+
+    toast.classList.remove('translate-y-20', 'opacity-0');
+    setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+}
+
+function updateTime() {
+    const now = new Date();
+    document.getElementById('current-time').textContent = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 </script>
 </body>
