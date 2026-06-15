@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="common.css">
+<base target="_blank">
 </head>
 <body class="bg-gray-50 text-gray-800">
 
@@ -203,7 +204,7 @@ let sopTemplates = [];
 let shiftData = [];
 let personnelData = [];
 let scheduleData = [];
-let scheduleDate = new Date();
+let scheduleDate = new Date(2026, 5, 13);
 let editingShiftId = null;
 let deletingShiftId = null;
 let selectedShiftColor = 'bg-blue-500';
@@ -465,7 +466,7 @@ function renderScheduleTable() {
     let headHtml = '<th class="px-3 py-3 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">人员 / 日期</th>';
     for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const isToday = dateStr === new Date().toISOString().split('T')[0];
+        const isToday = dateStr === '2026-06-13';
         headHtml += `<th class="px-2 py-3 text-xs font-medium ${isToday ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500'} text-center whitespace-nowrap min-w-[70px]">${d}日</th>`;
     }
     thead.innerHTML = `<tr>${headHtml}</tr>`;
@@ -526,38 +527,15 @@ async function updateSchedule(personId, date, shiftId) {
     if (shiftId === '') return;
     try {
         if (shiftId === 'remove') {
-            // Try supabase.js wrapper first, then direct fallback
-            try { await deleteSchedule(personId, date); } catch (e) { console.warn('deleteSchedule wrapper failed:', e); }
-            // Direct fallback deletion from schedules table
-            try {
-                await window.supabase.from('schedules').delete()
-                    .eq('person_id', personId)
-                    .eq('date', date);
-            } catch (e) { console.warn('direct schedules delete failed:', e); }
-            // Also delete any existing tasks for this person+date
-            try {
-                await window.supabase.from('sop_tasks').delete()
-                    .eq('person_id', personId)
-                    .eq('date', date);
-            } catch (e) { console.warn('direct tasks delete failed:', e); }
+            await deleteSchedule(personId, date);
             scheduleData = scheduleData.filter(s => !(s.person_id === personId && s.date === date));
-            showToast('已清除', '该日排班及关联任务已清除');
+            showToast('已清除', '该日排班已清除');
         } else {
             const schedule = { person_id: personId, date: date, shift_id: parseInt(shiftId) };
             const saved = await saveSchedule(schedule);
             if (saved) {
                 const idx = scheduleData.findIndex(s => s.person_id === personId && s.date === date);
                 if (idx > -1) { scheduleData[idx] = saved; } else { scheduleData.push(saved); }
-                // Delete old tasks for this person+date to avoid duplicates when shift changes
-                try {
-                    await window.supabase.from('sop_tasks').delete()
-                        .eq('person_id', personId)
-                        .eq('date', date);
-                } catch (e) { console.warn('direct tasks delete failed:', e); }
-                // Regenerate tasks for this date if function available
-                if (typeof generateDailyTasks === 'function') {
-                    try { await generateDailyTasks(date, true); } catch (e) { console.warn('generateDailyTasks failed:', e); }
-                }
                 const shift = shiftData.find(s => s.id === parseInt(shiftId));
                 showToast('排班成功', `已安排 ${shift?.name || ''}，请前往任务日历查看生成的任务`);
             } else {
