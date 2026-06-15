@@ -312,7 +312,7 @@ async function generateDailyTasks(date, force = false) {
         const year = parseInt(dateParts[0]);
         const month = parseInt(dateParts[1]) - 1;
 
-        console.log(`[generateDailyTasks] 开始生成 ${date} 的任务...`);
+        console.log(`[generateDailyTasks] 开始处理 ${date} 的任务...`);
 
         const schedules = await loadSchedules(month, year);
         console.log(`[generateDailyTasks] 加载到 ${schedules.length} 条排班记录`);
@@ -329,22 +329,42 @@ async function generateDailyTasks(date, force = false) {
         let existing = await loadSopTasks(date);
         console.log(`[generateDailyTasks] 已有任务: ${existing.length} 个`);
 
-        // 不再因已有任务而整体跳过，改为逐个检查每个排班+SOP组合是否已存在
-        // 这样新增排班时仍能生成对应的新任务，同时保留已有进度
+        // 构建期望的任务集合：schedule_id + sop_template_id
+        const expectedKeys = new Set();
+        for (const sched of todaySchedules) {
+            const shift = shifts.find(s => s.id === sched.shift_id);
+            if (!shift) continue;
+            const sopIds = shift.sop_ids || [];
+            for (const sopId of sopIds) {
+                expectedKeys.add(`${sched.id}-${sopId}`);
+            }
+        }
+        console.log(`[generateDailyTasks] 期望任务数: ${expectedKeys.size}`);
 
-        if (force && existing.length > 0) {
-            console.log('[generateDailyTasks] 强制重新生成，先删除旧任务...');
-            const { error: delError } = await window.supabase.from('sop_tasks').delete().eq('date', date);
+        // 清理不再有效的任务（排班删除或班次变更导致SOP不匹配）
+        const tasksToDelete = [];
+        for (const task of existing) {
+            const key = `${task.schedule_id}-${task.sop_template_id}`;
+            if (!expectedKeys.has(key)) {
+                tasksToDelete.push(task.id);
+                console.log(`[generateDailyTasks] 标记删除旧任务: task=${task.id}, key=${key}`);
+            }
+        }
+
+        if (tasksToDelete.length > 0) {
+            console.log(`[generateDailyTasks] 删除 ${tasksToDelete.length} 个无效任务...`);
+            const { error: delError } = await window.supabase.from('sop_tasks').delete().in('id', tasksToDelete);
             if (delError) {
                 console.error('[generateDailyTasks] 删除旧任务失败:', delError);
             } else {
                 console.log('[generateDailyTasks] 旧任务已删除');
+                existing = existing.filter(t => !tasksToDelete.includes(t.id));
             }
-            existing = [];
         }
 
-        const tasks = [];
+        // 生成新增的任务
         const existingKeys = new Set(existing.map(t => `${t.schedule_id}-${t.sop_template_id}`));
+        const tasks = [];
 
         for (const sched of todaySchedules) {
             const shift = shifts.find(s => s.id === sched.shift_id);
