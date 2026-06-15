@@ -301,6 +301,49 @@ async function deleteSopTask(id) {
     }
 }
 
+// ==================== 清理任务关联图片 ====================
+async function cleanupTaskPhotos(taskIds) {
+    if (!isSupabaseReady() || !taskIds || taskIds.length === 0) return;
+    try {
+        const { data: photos, error: photoError } = await window.supabase
+            .from('task_photos')
+            .select('id, photo_url')
+            .in('task_id', taskIds);
+        
+        if (photoError) {
+            console.error('[cleanupTaskPhotos] 查询照片失败:', photoError);
+            return;
+        }
+        
+        if (photos && photos.length > 0) {
+            for (const photo of photos) {
+                try {
+                    const urlObj = new URL(photo.photo_url);
+                    const pathMatch = urlObj.pathname.match(/\/sop-photos\/(.+)/);
+                    if (pathMatch) {
+                        await window.supabase.storage.from('sop-photos').remove([pathMatch[1]]);
+                    }
+                } catch (storageErr) {
+                    console.warn('[cleanupTaskPhotos] 删除 storage 图片失败:', storageErr);
+                }
+            }
+            
+            const { error: delPhotoError } = await window.supabase
+                .from('task_photos')
+                .delete()
+                .in('task_id', taskIds);
+            
+            if (delPhotoError) {
+                console.error('[cleanupTaskPhotos] 删除照片记录失败:', delPhotoError);
+            } else {
+                console.log(`[cleanupTaskPhotos] 已清理 ${photos.length} 张图片`);
+            }
+        }
+    } catch (e) {
+        console.error('[cleanupTaskPhotos] 异常:', e);
+    }
+}
+
 // ==================== 生成每日任务（修复版）====================
 async function generateDailyTasks(date, force = false) {
     if (!isSupabaseReady()) {
@@ -352,6 +395,7 @@ async function generateDailyTasks(date, force = false) {
         }
 
         if (tasksToDelete.length > 0) {
+            await cleanupTaskPhotos(tasksToDelete);
             console.log(`[generateDailyTasks] 删除 ${tasksToDelete.length} 个无效任务...`);
             const { error: delError } = await window.supabase.from('sop_tasks').delete().in('id', tasksToDelete);
             if (delError) {
@@ -462,6 +506,7 @@ window.deleteSchedule = deleteSchedule;
 window.loadSopTasks = loadSopTasks;
 window.saveSopTask = saveSopTask;
 window.deleteSopTask = deleteSopTask;
+window.cleanupTaskPhotos = cleanupTaskPhotos;
 window.generateDailyTasks = generateDailyTasks;
 window.isSupabaseReady = isSupabaseReady;
 window.loadPositions = loadPositions;
