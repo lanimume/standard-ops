@@ -164,7 +164,7 @@ async function saveSchedule(schedule) {
 async function deleteSchedule(personId, date) {
     if (!isSupabaseReady()) return;
     try {
-        await window.supabase.from('sched班').delete().eq('person_id', personId).eq('date', date);
+        await window.supabase.from('schedules').delete().eq('person_id', personId).eq('date', date);
     } catch (e) { handleSupabaseError('deleteSchedule', e); }
 }
 
@@ -260,10 +260,16 @@ async function generateDailyTasks(date, force = false) {
             return existing;
         }
 
-        // 强制重新生成时：保留已有任务的 steps 状态，只补充新任务
+        // 强制重新生成时：先删除该日期所有旧任务，再根据当前排班重新生成
         if (force && existing.length > 0) {
-            console.log('[generateDailyTasks] 强制重新生成，保留已有任务状态...');
-            // 不删除已有任务，而是检查是否需要补充新任务
+            console.log('[generateDailyTasks] 强制重新生成，先删除旧任务...');
+            const { error: delError } = await window.supabase.from('sop_tasks').delete().eq('date', date);
+            if (delError) {
+                console.error('[generateDailyTasks] 删除旧任务失败:', delError);
+            } else {
+                console.log('[generateDailyTasks] 旧任务已删除');
+            }
+            existing = []; // 清空已有任务列表
         }
 
         const tasks = [];
