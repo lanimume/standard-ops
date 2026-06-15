@@ -1,3 +1,4 @@
+// supabase.js
 // ==================== Supabase 配置 ====================
 const SUPABASE_URL = 'https://pgphhfqiyqdnlrqurzvv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_VD3xRTYLl_0CXCz_SR1jHw_17shJsXj';
@@ -46,6 +47,62 @@ function isSupabaseReady() {
 function handleSupabaseError(context, error) {
     console.error(`[Supabase] ${context}:`, error);
     showToast('连接异常', `数据库连接失败 (${context})，使用离线模式`, 'warning');
+}
+
+// ==================== 职位管理 ====================
+async function loadPositions() {
+    if (!isSupabaseReady()) { console.warn('Supabase 未加载，使用空数据'); return []; }
+    try {
+        const { data, error } = await window.supabase.from('positions').select('*').order('id');
+        if (error) { handleSupabaseError('loadPositions', error); return []; }
+        return data || [];
+    } catch (e) { handleSupabaseError('loadPositions', e); return []; }
+}
+
+async function savePosition(position) {
+    if (!isSupabaseReady()) { showToast('离线模式', '无法保存到数据库', 'warning'); return null; }
+    try {
+        const { data, error } = await window.supabase.from('positions').upsert(position).select();
+        if (error) { handleSupabaseError('savePosition', error); return null; }
+        return data?.[0];
+    } catch (e) { handleSupabaseError('savePosition', e); return null; }
+}
+
+async function deletePosition(id) {
+    if (!isSupabaseReady()) return false;
+    try {
+        const { error } = await window.supabase.from('positions').delete().eq('id', id);
+        if (error) { handleSupabaseError('deletePosition', error); return false; }
+        return true;
+    } catch (e) { handleSupabaseError('deletePosition', e); return false; }
+}
+
+// ==================== 部门管理 ====================
+async function loadDepartments() {
+    if (!isSupabaseReady()) { console.warn('Supabase 未加载，使用空数据'); return []; }
+    try {
+        const { data, error } = await window.supabase.from('departments').select('*').order('id');
+        if (error) { handleSupabaseError('loadDepartments', error); return []; }
+        return data || [];
+    } catch (e) { handleSupabaseError('loadDepartments', e); return []; }
+}
+
+async function saveDepartment(department) {
+    if (!isSupabaseReady()) { showToast('离线模式', '无法保存到数据库', 'warning'); return null; }
+    try {
+        const { data, error } = await window.supabase.from('departments').upsert(department).select();
+        if (error) { handleSupabaseError('saveDepartment', error); return null; }
+        return data?.[0];
+    } catch (e) { handleSupabaseError('saveDepartment', e); return null; }
+}
+
+async function deleteDepartment(id) {
+    if (!isSupabaseReady()) return false;
+    try {
+        const { error } = await window.supabase.from('departments').delete().eq('id', id);
+        if (error) { handleSupabaseError('deleteDepartment', error); return false; }
+        return true;
+    } catch (e) { handleSupabaseError('deleteDepartment', e); return false; }
 }
 
 // ==================== 数据加载函数（带降级）====================
@@ -254,13 +311,11 @@ async function generateDailyTasks(date, force = false) {
         let existing = await loadSopTasks(date);
         console.log(`[generateDailyTasks] 已有任务: ${existing.length} 个`);
 
-        // 如果已有任务且不是强制重新生成，直接返回已有任务
         if (!force && existing.length > 0) {
             console.log('[generateDailyTasks] 已有任务，跳过生成');
             return existing;
         }
 
-        // 强制重新生成时：先删除该日期所有旧任务，再根据当前排班重新生成
         if (force && existing.length > 0) {
             console.log('[generateDailyTasks] 强制重新生成，先删除旧任务...');
             const { error: delError } = await window.supabase.from('sop_tasks').delete().eq('date', date);
@@ -269,7 +324,7 @@ async function generateDailyTasks(date, force = false) {
             } else {
                 console.log('[generateDailyTasks] 旧任务已删除');
             }
-            existing = []; // 清空已有任务列表
+            existing = [];
         }
 
         const tasks = [];
@@ -291,7 +346,6 @@ async function generateDailyTasks(date, force = false) {
             for (const sopId of sopIds) {
                 const key = `${sched.id}-${sopId}`;
                 
-                // 如果已有这个任务，跳过
                 if (existingKeys.has(key)) {
                     console.log(`[generateDailyTasks] 任务已存在: schedule=${sched.id}, sop=${sopId}`);
                     continue;
@@ -373,3 +427,9 @@ window.loadSopTasks = loadSopTasks;
 window.saveSopTask = saveSopTask;
 window.generateDailyTasks = generateDailyTasks;
 window.isSupabaseReady = isSupabaseReady;
+window.loadPositions = loadPositions;
+window.savePosition = savePosition;
+window.deletePosition = deletePosition;
+window.loadDepartments = loadDepartments;
+window.saveDepartment = saveDepartment;
+window.deleteDepartment = deleteDepartment;
