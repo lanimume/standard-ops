@@ -241,18 +241,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         shiftData = await loadShifts();
         personnelData = await loadPersonnel();
 
-        if (shiftData.length === 0) {
-            for (const s of defaultShifts) {
-                await saveShift(s);
-            }
-            shiftData = await loadShifts();
-        }
-
-        if (personnelData.length === 0) {
-            await initDefaultPersonnel();
-            personnelData = await loadPersonnel();
-        }
-
         const year = scheduleDate.getFullYear();
         const month = scheduleDate.getMonth();
         scheduleData = await loadSchedules(month, year);
