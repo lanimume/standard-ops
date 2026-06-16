@@ -1082,26 +1082,31 @@ async function deleteAdmin(id) {
 
 function renderAdmins() {
     const container = document.getElementById('admin-list');
+    const currentUser = authGuard.getUser();
     if (adminsData.length === 0) {
         container.innerHTML = '<p class="text-gray-400 text-center py-4">暂无管理员账号</p>';
         return;
     }
-    container.innerHTML = adminsData.map(admin => `
+    container.innerHTML = adminsData.map(admin => {
+        const isSelf = currentUser && currentUser.username === admin.username;
+        return `
         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-700 font-bold">
                     <i class="fas fa-user-shield"></i>
                 </div>
                 <div>
-                    <h4 class="font-medium text-gray-800">${admin.name}</h4>
+                    <h4 class="font-medium text-gray-800">${admin.name} ${isSelf ? '<span class="text-xs bg-emerald-500 text-white px-2 py-0.5 rounded ml-2">当前登录</span>' : ''}</h4>
                     <p class="text-sm text-gray-500">账号: ${admin.username}</p>
                 </div>
             </div>
+            ${isSelf ? '' : `
             <button onclick="deleteAdminPrompt(${admin.id})" class="w-8 h-8 rounded-lg bg-gray-100 text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors">
                 <i class="fas fa-trash text-xs"></i>
             </button>
+            `}
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function showAddAdminModal() {
@@ -1173,6 +1178,23 @@ function closeDeleteAdminModal() {
 
 async function confirmDeleteAdmin() {
     if (!deletingAdminId) return;
+
+    // 再次检查：不能删除自己
+    const admin = adminsData.find(a => a.id === deletingAdminId);
+    const currentUser = authGuard.getUser();
+    if (admin && currentUser && admin.username === currentUser.username) {
+        showToast('操作禁止', '不能删除当前登录的管理员账号', 'error');
+        closeDeleteAdminModal();
+        return;
+    }
+
+    // 检查是否至少保留一个管理员
+    if (adminsData.length <= 1) {
+        showToast('操作禁止', '系统中必须至少保留一个管理员', 'error');
+        closeDeleteAdminModal();
+        return;
+    }
+
     try {
         await deleteAdmin(deletingAdminId);
         adminsData = adminsData.filter(a => a.id !== deletingAdminId);
