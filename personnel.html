@@ -14,6 +14,7 @@
 <base target="_blank">
     <script src="auth.js"></script>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body class="bg-gray-50 text-gray-800">
 
@@ -742,7 +743,7 @@ function editPerson(id) {
     document.getElementById('person-name').value = person.name;
     document.getElementById('person-id-card').value = person.id_card || '';
     document.getElementById('person-username').value = person.username || '';
-    document.getElementById('person-password').value = ''; // 编辑时密码留空表示不修改
+    document.getElementById('person-password').value = person.password_hash || ''; // 显示当前密码
     document.getElementById('person-gender').value = person.gender || '';
     document.getElementById('person-age').value = person.age || '';
     document.getElementById('person-birth').value = person.birth_date || '';
@@ -793,8 +794,9 @@ async function savePerson() {
     if (!idCard) { showToast('输入错误', '请输入身份证号', 'error'); return; }
     if (idCard.length !== 18) { showToast('输入错误', '身份证号必须为18位', 'error'); return; }
     if (!username) { showToast('输入错误', '请设置登录账号', 'error'); return; }
-    if (!password) { showToast('输入错误', '请设置登录密码', 'error'); return; }
-    if (password.length < 6) { showToast('输入错误', '密码至少6位', 'error'); return; }
+    // 新增人员时密码必填，编辑时密码为空表示不修改
+    if (!editingPersonId && !password) { showToast('输入错误', '请设置登录密码', 'error'); return; }
+    if (password && password.length < 6) { showToast('输入错误', '密码至少6位', 'error'); return; }
 
     // 身份证重复校验（编辑时排除自己）
     const duplicate = personnelData.find(p => p.id_card === idCard && p.id !== editingPersonId);
@@ -870,10 +872,13 @@ async function savePerson() {
         health_cert_expiry: healthCertExpiry,
         status,
         username,
-        password_hash: password,
         avatar: name.charAt(0),
         color: colors[personnelData.length % colors.length]
     };
+    // 编辑时密码为空则不修改密码，新增时必须有密码
+    if (password) {
+        personData.password_hash = password;
+    }
 
     try {
         if (editingPersonId) {
@@ -1131,8 +1136,9 @@ async function saveAdminForm() {
 
     if (!name) { showToast('输入错误', '请输入姓名', 'error'); return; }
     if (!username) { showToast('输入错误', '请设置登录账号', 'error'); return; }
-    if (!password) { showToast('输入错误', '请设置登录密码', 'error'); return; }
-    if (password.length < 6) { showToast('输入错误', '密码至少6位', 'error'); return; }
+    // 新增人员时密码必填，编辑时密码为空表示不修改
+    if (!editingPersonId && !password) { showToast('输入错误', '请设置登录密码', 'error'); return; }
+    if (password && password.length < 6) { showToast('输入错误', '密码至少6位', 'error'); return; }
 
     // 检查账号是否已被使用
     const personDup = personnelData.find(p => p.username === username);
