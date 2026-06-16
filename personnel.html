@@ -13,6 +13,7 @@
 <base target="_blank">
 <base target="_blank">
     <script src="auth.js"></script>
+<base target="_blank">
 </head>
 <body class="bg-gray-50 text-gray-800">
 
@@ -383,7 +384,7 @@
             </div>
             <div class="flex gap-3 pt-4">
                 <button onclick="closeAdminModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors">取消</button>
-                <button onclick="saveAdmin()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors">保存</button>
+                <button onclick="saveAdminForm()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors">保存</button>
             </div>
         </div>
     </div>
@@ -1060,15 +1061,6 @@ async function loadAdmins() {
         if (error) { console.error('loadAdmins error:', error); return []; }
         return data || [];
     } catch (e) { console.error('loadAdmins error:', e); return []; }
-}
-
-async function saveAdmin(admin) {
-    if (!isSupabaseReady()) { showToast('离线模式', '无法保存到数据库', 'warning'); return null; }
-    try {
-        const { data, error } = await window.supabase.from('admins').upsert(admin).select();
-        if (error) { console.error('saveAdmin error:', error); return null; }
-        return data?.[0];
-    } catch (e) { console.error('saveAdmin error:', e); return null; }
 }
 
 async function deleteAdmin(id) {
