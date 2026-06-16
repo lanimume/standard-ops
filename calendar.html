@@ -206,6 +206,7 @@
 let currentDate = new Date();
 let selectedDate = new Date().toISOString().split('T')[0];
 let taskData = [];
+let monthTaskData = []; // 整月任务数据（用于日历小红点）
 let currentTaskId = null;
 let deletingTaskId = null;
 
@@ -243,6 +244,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const myPersonId = authGuard.getCurrentPersonId();
             taskData = taskData.filter(t => t.person_id === myPersonId);
         }
+
+        // 加载整月任务数据用于日历小红点
+        monthTaskData = await loadMonthSopTasks(currentDate.getFullYear(), currentDate.getMonth());
+        if (!authGuard.isAdmin()) {
+            const myPersonId = authGuard.getCurrentPersonId();
+            monthTaskData = monthTaskData.filter(t => t.person_id === myPersonId);
+        }
     } catch (e) {
         console.error('任务加载失败:', e);
         showToast('警告', '数据库连接失败，任务数据可能不完整', 'warning');
@@ -273,7 +281,7 @@ function renderCalendar() {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const isToday = dateStr === new Date().toISOString().split('T')[0];
         const isSelected = dateStr === selectedDate;
-        const hasTask = taskData.some(t => t.date === dateStr);
+        const hasTask = monthTaskData.some(t => t.date === dateStr);
 
         const cell = document.createElement('div');
         cell.className = `calendar-day relative flex items-center justify-center text-sm font-medium rounded-lg ${isSelected ? 'ring-2 ring-emerald-500 bg-emerald-50' : isToday ? 'today' : 'text-gray-700 hover:bg-gray-50'}`;
@@ -297,6 +305,17 @@ async function selectDate(dateStr) {
             const myPersonId = authGuard.getCurrentPersonId();
             taskData = taskData.filter(t => t.person_id === myPersonId);
         }
+
+        // 如果切换了月份，重新加载整月数据
+        const newDate = new Date(dateStr);
+        if (newDate.getFullYear() !== currentDate.getFullYear() || newDate.getMonth() !== currentDate.getMonth()) {
+            currentDate = newDate;
+            monthTaskData = await loadMonthSopTasks(currentDate.getFullYear(), currentDate.getMonth());
+            if (!authGuard.isAdmin()) {
+                const myPersonId = authGuard.getCurrentPersonId();
+                monthTaskData = monthTaskData.filter(t => t.person_id === myPersonId);
+            }
+        }
     } catch (e) {
         console.error('任务加载失败:', e);
         showToast('警告', '任务加载失败', 'warning');
@@ -305,8 +324,20 @@ async function selectDate(dateStr) {
     renderTasks();
 }
 
-function changeMonth(delta) {
+async function changeMonth(delta) {
     currentDate.setMonth(currentDate.getMonth() + delta);
+
+    // 加载新月份的整月任务数据
+    try {
+        monthTaskData = await loadMonthSopTasks(currentDate.getFullYear(), currentDate.getMonth());
+        if (!authGuard.isAdmin()) {
+            const myPersonId = authGuard.getCurrentPersonId();
+            monthTaskData = monthTaskData.filter(t => t.person_id === myPersonId);
+        }
+    } catch (e) {
+        console.error('整月任务加载失败:', e);
+    }
+
     renderCalendar();
 }
 
@@ -490,6 +521,27 @@ function closeTaskModal() {
     content.classList.remove('scale-100', 'opacity-100');
     content.classList.add('scale-95', 'opacity-0');
     setTimeout(() => { modal.classList.add('hidden'); currentTaskId = null; }, 300);
+}
+
+// 加载整月任务数据（用于日历小红点）
+async function loadMonthSopTasks(year, month) {
+    if (typeof supabase === 'undefined' || !window.supabase) return [];
+    try {
+        const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        const end = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
+        const { data, error } = await window.supabase.from('sop_tasks')
+            .select('id, date, person_id')
+            .gte('date', start)
+            .lte('date', end);
+        if (error) {
+            console.error('[loadMonthSopTasks] 错误:', error);
+            return [];
+        }
+        return data || [];
+    } catch (e) {
+        console.error('[loadMonthSopTasks] 异常:', e);
+        return [];
+    }
 }
 
 async function completeStep(taskId, stepIndex) {
