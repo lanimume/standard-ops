@@ -568,3 +568,156 @@ async function deleteAdmin(id) {
 window.loadAdmins = loadAdmins;
 window.saveAdmin = saveAdmin;
 window.deleteAdmin = deleteAdmin;
+
+
+// ==================== 修改密码模块（全局）====================
+(function() {
+    // 动态插入修改密码弹窗 HTML
+    const pwdModalHTML = `
+    <div id="password-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center modal-overlay">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="password-modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-bold text-xl text-gray-800">修改密码</h3>
+                <button onclick="closePasswordModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">原密码</label>
+                    <input type="password" id="old-password" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all" placeholder="请输入原密码">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">新密码</label>
+                    <input type="password" id="new-password" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all" placeholder="请输入新密码（至少6位）">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">确认新密码</label>
+                    <input type="password" id="confirm-password" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all" placeholder="请再次输入新密码">
+                </div>
+                <div id="password-error" class="hidden text-sm text-red-500 bg-red-50 px-4 py-2 rounded-lg">
+                    <i class="fas fa-exclamation-circle mr-1"></i><span id="password-error-text"></span>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closePasswordModal()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors">取消</button>
+                    <button onclick="saveNewPassword()" class="flex-1 py-2.5 rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors">确认修改</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    function insertPasswordModal() {
+        if (document.getElementById('password-modal')) return;
+        const div = document.createElement('div');
+        div.innerHTML = pwdModalHTML;
+        document.body.appendChild(div.firstElementChild);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', insertPasswordModal);
+    } else {
+        insertPasswordModal();
+    }
+})();
+
+function openChangePasswordModal() {
+    if (!document.getElementById('password-modal')) {
+        console.error('密码弹窗未加载');
+        return;
+    }
+    document.getElementById('old-password').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+    const errorDiv = document.getElementById('password-error');
+    if (errorDiv) errorDiv.classList.add('hidden');
+
+    const modal = document.getElementById('password-modal');
+    const content = document.getElementById('password-modal-content');
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        content.classList.remove('scale-95', 'opacity-0');
+        content.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+function closePasswordModal() {
+    const modal = document.getElementById('password-modal');
+    const content = document.getElementById('password-modal-content');
+    if (!modal || !content) return;
+    content.classList.remove('scale-100', 'opacity-100');
+    content.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => { modal.classList.add('hidden'); }, 300);
+}
+
+async function saveNewPassword() {
+    const oldPwd = document.getElementById('old-password').value;
+    const newPwd = document.getElementById('new-password').value;
+    const confirmPwd = document.getElementById('confirm-password').value;
+    const errorDiv = document.getElementById('password-error');
+    const errorText = document.getElementById('password-error-text');
+
+    if (!oldPwd || !newPwd || !confirmPwd) {
+        errorText.textContent = '请填写所有密码字段';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+    if (newPwd.length < 6) {
+        errorText.textContent = '新密码至少6位';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+    if (newPwd !== confirmPwd) {
+        errorText.textContent = '两次输入的新密码不一致';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    const user = authGuard.getUser();
+    if (!user) {
+        errorText.textContent = '登录状态异常，请重新登录';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        // 根据角色判断查询哪个表：admin -> admins 表，user -> personnel 表
+        const tableName = user.role === 'admin' ? 'admins' : 'personnel';
+
+        // 验证原密码
+        const { data: verifyData, error: verifyError } = await window.supabase
+            .from(tableName)
+            .select('id')
+            .eq('id', user.id)
+            .eq('password_hash', oldPwd)
+            .single();
+
+        if (verifyError || !verifyData) {
+            errorText.textContent = '原密码错误';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        // 更新密码
+        const { error: updateError } = await window.supabase
+            .from(tableName)
+            .update({ password_hash: newPwd })
+            .eq('id', user.id);
+
+        if (updateError) throw updateError;
+
+        closePasswordModal();
+        showToast('修改成功', '密码已更新，请使用新密码重新登录');
+
+        // 3秒后自动退出登录
+        setTimeout(() => {
+            authGuard.logout();
+        }, 3000);
+
+    } catch (e) {
+        console.error('修改密码失败:', e);
+        errorText.textContent = '修改失败，请稍后重试';
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+window.openChangePasswordModal = openChangePasswordModal;
+window.closePasswordModal = closePasswordModal;
+window.saveNewPassword = saveNewPassword;
