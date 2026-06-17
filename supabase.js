@@ -721,3 +721,35 @@ async function saveNewPassword() {
 window.openChangePasswordModal = openChangePasswordModal;
 window.closePasswordModal = closePasswordModal;
 window.saveNewPassword = saveNewPassword;
+
+// ==================== SOP 分类管理 ====================
+async function loadSopCategories() {
+    if (!isSupabaseReady()) return [];
+    try {
+        const { data, error } = await window.supabase.from('sop_categories').select('*').order('id');
+        if (error) { console.error('loadSopCategories error:', error); return []; }
+        return data || [];
+    } catch (e) { console.error('loadSopCategories error:', e); return []; }
+}
+
+async function saveSopCategory(category) {
+    if (!isSupabaseReady()) { showToast('离线模式', '无法保存到数据库', 'warning'); return null; }
+    try {
+        const { data, error } = await window.supabase.from('sop_categories').upsert(category).select();
+        if (error) { console.error('saveSopCategory error:', error); return null; }
+        return data?.[0];
+    } catch (e) { console.error('saveSopCategory error:', e); return null; }
+}
+
+async function deleteSopCategory(id) {
+    if (!isSupabaseReady()) return false;
+    try {
+        const { error } = await window.supabase.from('sop_categories').delete().eq('id', id);
+        if (error) { console.error('deleteSopCategory error:', error); return false; }
+        return true;
+    } catch (e) { console.error('deleteSopCategory error:', e); return false; }
+}
+
+window.loadSopCategories = loadSopCategories;
+window.saveSopCategory = saveSopCategory;
+window.deleteSopCategory = deleteSopCategory;
