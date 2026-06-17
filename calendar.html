@@ -29,6 +29,7 @@
     <script src="auth.js"></script>
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body class="bg-gray-50 text-gray-800">
 
@@ -453,6 +454,9 @@ async function openTaskDetail(taskId) {
         const isDone = step.done;
         const photos = allStepPhotos[idx] || [];
         const hasPhotos = photos.length > 0;
+        // 从模板原始步骤中获取是否需要拍照
+        const templateSteps = task.sop_template?.steps || [];
+        const requirePhoto = templateSteps[idx]?.require_photo || false;
 
         return `
             <div class="border rounded-xl p-4 ${isDone ? 'border-emerald-200 bg-emerald-50/50' : 'border-gray-200'}" data-step-index="${idx}">
@@ -498,12 +502,18 @@ async function openTaskDetail(taskId) {
                                     </div>
                                 `).join('')}
                             </div>
-                            ${isToday && !isDone ? `
+                            ${isToday && !isDone && requirePhoto ? `
                                 <label for="photo-input-${taskId}-${idx}" class="photo-upload-btn">
                                     <i class="fas fa-camera"></i>
                                     <span>上传图片</span>
                                 </label>
                                 <input type="file" id="photo-input-${taskId}-${idx}" class="hidden" accept="image/*" onchange="handlePhotoUpload(${taskId}, ${idx}, this)">
+                            ` : ''}
+                            ${isToday && !isDone && !requirePhoto ? `
+                                <span class="text-xs text-gray-400 mt-2 inline-flex items-center gap-1"><i class="fas fa-info-circle"></i>此步骤无需拍照</span>
+                            ` : ''}
+                            ${!isToday && requirePhoto && photos.length === 0 ? `
+                                <span class="text-xs text-gray-400 mt-2 inline-flex items-center gap-1"><i class="fas fa-ban"></i>未上传照片</span>
                             ` : ''}
                         </div>
                     </div>
