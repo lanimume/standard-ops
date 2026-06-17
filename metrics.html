@@ -807,7 +807,7 @@ function exportCSV(monthStr, year, month, daysInMonth, persons, tasks) {
     }
     csv += ',总步骤,完成步骤,完成率,评价\n';
 
-    // 数据行
+    // 数据行 - 使用制表符前缀防止 Excel 将 "9/9" 识别为日期
     persons.forEach(person => {
         let personTotal = 0;
         let personDone = 0;
@@ -829,7 +829,8 @@ function exportCSV(monthStr, year, month, daysInMonth, persons, tasks) {
                 });
                 personTotal += dayTotal;
                 personDone += dayDone;
-                row += `,${dayDone}/${dayTotal}`;
+                // 在值前面加制表符 \t，阻止 Excel 自动格式转换
+                row += `,\t${dayDone}\/${dayTotal}`;
             }
         }
 
